@@ -321,6 +321,10 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     // of attributes for an NSAttributedString
     var attributes: [Attribute: [NSAttributedString.Key:Any]] = [:]
     var urlAttributes: [Attribute: [NSAttributedString.Key:Any]] = [:]
+    /// Per-row segments and shaped CTLines kept between frames (see `RowRenderCacheEntry`).
+    var rowRenderCache: [Int: RowRenderCacheEntry] = [:]
+    /// Bumped by every appearance change that `rowRenderCache` keys cannot see.
+    var rowRenderEpoch: UInt64 = 0
     
     
     // Cache for the colors in the 0..255 range
@@ -986,6 +990,7 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     /// Controls whether this view applies the terminal's BiDi presentation state.
     public var bidiHostPolicy: BidiHostPolicy = .respectTerminal {
         didSet {
+            rowRenderEpoch &+= 1
             terminal.updateFullScreen()
             queuePendingDisplay()
             updateCursorPosition()
@@ -995,6 +1000,7 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     /// When true, block element (U+2580-U+259F) and box drawing (U+2500-U+257F) characters use custom rendering.
     public var customBlockGlyphs: Bool = true {
         didSet {
+            rowRenderEpoch &+= 1
             terminal.updateFullScreen()
             queuePendingDisplay()
         }
@@ -1035,6 +1041,7 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         }
         set {
             _selectedTextBackgroundColor = newValue
+            rowRenderEpoch &+= 1
             terminal.updateFullScreen()
             queuePendingDisplay()
         }
@@ -1048,6 +1055,7 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         }
         set {
             _selectedTextForegroundColor = newValue
+            rowRenderEpoch &+= 1
             terminal.updateFullScreen()
             queuePendingDisplay()
         }
@@ -1194,6 +1202,7 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         didSet {
             linkHighlightRange = nil
             updateLinkHighlightTracking()
+            rowRenderEpoch &+= 1
             terminal.updateFullScreen()
             queuePendingDisplay()
         }
